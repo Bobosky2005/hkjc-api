@@ -1,6 +1,6 @@
 {
   "name": "hkjc-api",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Node.js package for communicating with HKJC GraphQL API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -13,7 +13,8 @@
     "build": "tsc",
     "test": "jest",
     "clean": "rimraf dist",
-    "prepublishOnly": "npm run clean && npm run build"
+    "prepublishOnly": "npm run clean && npm run build",
+    "example": "ts-node examples/test.ts"
   },
   "keywords": [
     "hkjc",

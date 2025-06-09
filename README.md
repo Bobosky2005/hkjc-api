@@ -5,9 +5,8 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
 ## Features
 
 - Horse Racing API
-  - Get active race meetings and races
-  - Get detailed race information
-  - Get race runners information
+  - Get active race meetings
+  - Get detailed race information and runners
   - Fetch various odds types (WIN, PLA, QIN, QPL, etc.)
   - Get pool investment data
   
@@ -62,14 +61,11 @@ const footballAPI = new FootballAPI(client);
 #### Get Race Meetings
 
 ```typescript
-// Get all race meetings
-const { activeMeetings, raceMeetings } = await horseRacingAPI.getRaceMeetings({
-  date: '2025-04-30',      // Optional: specific date
-  venueCode: 'ST'          // Optional: venue code (ST = Sha Tin, HV = Happy Valley)
-});
-
 // Get only active meetings
 const activeMeetings = await horseRacingAPI.getActiveMeetings();
+
+// Get all race meetings (includes race details)
+const raceMeetings = await horseRacingAPI.getAllRaces();
 ```
 
 #### Get Race Information
@@ -85,11 +81,10 @@ const race = await horseRacingAPI.getRace(3); // Get race #3
 #### Get Race Runners
 
 ```typescript
-// Get active runners for race #1
-const runners = await horseRacingAPI.getRaceRunners(1);
-
-// Get standby runners for race #1
-const standbyRunners = await horseRacingAPI.getStandbyRunners(1);
+// Note: Runner information is included in the race data from getAllRaces() or getRace()
+// Access runners through the race object's runners property
+const race = await horseRacingAPI.getRace(1);
+const runners = race?.runners || [];
 ```
 
 #### Get Race Odds
@@ -97,16 +92,14 @@ const standbyRunners = await horseRacingAPI.getStandbyRunners(1);
 ```typescript
 // Get odds for a specific race and odds types
 const oddsResult = await horseRacingAPI.getRaceOdds(
-  1,                      // Race number
-  ['WIN', 'PLA', 'QIN'],  // Odds types
-  '2025-04-30',           // Optional: Date
-  'HV'                    // Optional: Venue code
+  1,                      // Race number (defaults to 1)
+  ['WIN', 'PLA', 'QIN']   // Odds types (defaults to ['WIN', 'PLA'])
 );
 
 // Get pool investment data
 const poolsResult = await horseRacingAPI.getRacePools(
-  1,                      // Race number
-  ['WIN', 'PLA']          // Odds types
+  1,                      // Race number (defaults to 1)
+  ['WIN', 'PLA']          // Odds types (defaults to ['WIN', 'PLA'])
 );
 ```
 
@@ -219,6 +212,10 @@ The following odds types are supported for football:
 // Simplified usage - no need to create a client instance
 const { HorseRacingAPI } = require('hkjc-api');
 const horseAPI = new HorseRacingAPI();
+
+// Get active meetings
+const activeMeetings = await horseAPI.getActiveMeetings();
+console.log(`Found ${activeMeetings.length} active meetings`);
 
 // Get today's race information
 const races = await horseAPI.getAllRaces();

@@ -1,6 +1,6 @@
 {
   "name": "hkjc-api",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Node.js package for communicating with HKJC GraphQL API",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

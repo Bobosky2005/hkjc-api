@@ -5,7 +5,8 @@ import {
 } from '../types/football';
 import {
     footballMatchesQuery,
-    footballMatchDetailsQuery
+    footballMatchDetailsQuery,
+    runningMatchQuery
 } from '../query/footballMatchesQuery';
 
 interface FootballMatchesResponse {
@@ -132,6 +133,49 @@ export class FootballAPI {
         } catch (error) {
             console.error('Error fetching football match details:', error);
             return null;
+        }
+    }
+
+    /**
+     * Get running match data using the specific running query
+     * @param matchId Single match ID (string or number)
+     * @returns Football match data using the running query
+     */
+    async getRunningMatch(matchId: string | number): Promise<FootballMatch[]> {
+        // Convert single ID to array format for the API call
+        const matchIds = [String(matchId)];
+
+        // Default variables based on variable.json
+        const fbOddsTypes: FootballOddsType[] = [
+            "HAD", "EHA", "CHP", "TQL", "FHA", "HHA", "HDC", "EDC", "HIL",
+            "EHL", "FHL", "CHL", "ECH", "FCH", "CRS", "ECS", "FCS", "FTS",
+            "TTG", "ETG", "NTS", "ENT", "FHH", "FHC", "CHD", "ECD", "EHH"
+        ];
+
+        try {
+            const response = await this.client.request<FootballMatchesResponse>(
+                runningMatchQuery,
+                {
+                    fbOddsTypes,
+                    fbOddsTypesM: fbOddsTypes,
+                    inplayOnly: true,
+                    featuredMatchesOnly: false,
+                    startDate: null,
+                    endDate: null,
+                    tournIds: null,
+                    matchIds,
+                    startIndex: null,
+                    endIndex: null,
+                    frontEndIds: null,
+                    earlySettlementOnly: false,
+                    showAllMatch: false
+                }
+            );
+
+            return response && response.matches ? response.matches : [];
+        } catch (error) {
+            console.error('Error fetching running match data:', error);
+            return [];
         }
     }
 }

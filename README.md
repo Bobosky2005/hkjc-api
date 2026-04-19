@@ -13,7 +13,33 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
 - Football API
   - Get all football matches with filtering options
   - Get detailed information for specific matches
+  - Get live/running match data with real-time scores
   - Access odds for multiple bet types (HAD, HHA, CRS, etc.)
+
+---
+
+## Table of Contents
+
+- [Installation](#installation)
+- [Usage](#usage)
+  - [Setup](#setup)
+  - [Horse Racing API](#horse-racing-api)
+    - [Get Race Meetings](#get-race-meetings)
+    - [Get Race Information](#get-race-information)
+    - [Get Race Runners](#get-race-runners)
+    - [Get Race Odds](#get-race-odds)
+  - [Football API](#football-api)
+    - [Get All Football Matches](#get-all-football-matches)
+    - [Get Match Details](#get-match-details)
+    - [Get Running/Live Match Data](#get-runninglive-match-data)
+- [Available Odds Types](#available-odds-types)
+  - [Horse Racing](#horse-racing)
+  - [Football](#football)
+- [Examples](#examples)
+  - [Horse Racing Example](#horse-racing-example)
+  - [Football Example](#football-example)
+- [Error Handling](#error-handling)
+- [License](#license)
 
 ---
 
@@ -27,31 +53,14 @@ npm install hkjc-api
 
 ## Usage
 
-### Basic Setup
-
-You can now use the HKJC API in two ways:
-
-#### Simplified Setup (Recommended)
+### Setup
 
 ```typescript
 import { HorseRacingAPI, FootballAPI } from 'hkjc-api';
 
-// Initialize APIs directly - client is created automatically
+// Initialize the APIs - client is created automatically
 const horseRacingAPI = new HorseRacingAPI();
 const footballAPI = new FootballAPI();
-```
-
-#### Advanced Setup (Custom Client)
-
-```typescript
-import { HKJCClient, HorseRacingAPI, FootballAPI } from 'hkjc-api';
-
-// Create a custom client if needed
-const client = new HKJCClient();
-
-// Initialize APIs with the custom client
-const horseRacingAPI = new HorseRacingAPI(client);
-const footballAPI = new FootballAPI(client);
 ```
 
 ---
@@ -136,6 +145,26 @@ const matchWithSpecificOdds = await footballAPI.getFootballMatchDetails(
 );
 ```
 
+#### Get Running/Live Match Data
+
+```typescript
+// Get running match data for a single match ID (string)
+const runningMatch1 = await footballAPI.getRunningMatch('50049157');
+
+// Get running match data for a single match ID (number)
+const runningMatch2 = await footballAPI.getRunningMatch(50049157);
+
+// The method returns live match data including:
+// - Real-time scores (runningResult)
+// - Live odds and betting pools
+// - Match status and updates
+// - In-play specific information
+
+// Note: getRunningMatch is specifically optimized for live/in-play matches
+// and includes real-time data that may not be available in getAllFootballMatches
+// or getFootballMatchDetails methods. Currently only supports single match IDs.
+```
+
 ---
 
 ## Available Odds Types
@@ -209,7 +238,6 @@ The following odds types are supported for football:
 ### Horse Racing Example
 
 ```typescript
-// Simplified usage - no need to create a client instance
 const { HorseRacingAPI } = require('hkjc-api');
 const horseAPI = new HorseRacingAPI();
 
@@ -229,7 +257,6 @@ console.log(`WIN/PLA odds for race #1:`, raceOdds);
 ### Football Example
 
 ```typescript
-// Simplified usage - no need to create a client instance
 const { FootballAPI } = require('hkjc-api');
 const footballAPI = new FootballAPI();
 
@@ -245,6 +272,14 @@ if (matches.length > 0) {
   console.log(`Match: ${matchDetails.homeTeam.name_en} vs ${matchDetails.awayTeam.name_en}`);
   console.log(`Date: ${matchDetails.matchDate}`);
   console.log(`Kick-off: ${matchDetails.kickOffTime}`);
+  
+  // Get live running match data for real-time scores
+  const runningData = await footballAPI.getRunningMatch(matchId);
+  if (runningData.length > 0) {
+    const liveMatch = runningData[0];
+    console.log(`Live Score: ${liveMatch.runningResult?.homeScore || 0}:${liveMatch.runningResult?.awayScore || 0}`);
+    console.log(`Status: ${liveMatch.status}`);
+  }
 }
 ```
 

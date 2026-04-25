@@ -1,13 +1,17 @@
 import { FootballAPI } from "../src";
 
-let footballAPI = new FootballAPI();
-
+const footballAPI = new FootballAPI();
 
 async function main() {
-	let result = await footballAPI.getAllFootballMatches();
+	const result = await footballAPI.getAllFootballMatches();
+	console.log(`Fetched ${result.length} matches`);
 
-	let detail = await footballAPI.getFootballMatchDetails(result[0].id);
+	if (result.length === 0) {
+		console.log('No matches returned.');
+		return;
+	}
 
+	const detail = await footballAPI.getFootballMatchDetails(result[0].id);
 	console.log(detail);
 }
 

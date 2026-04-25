@@ -13,6 +13,34 @@ interface FootballMatchesResponse {
     matches: FootballMatch[];
 }
 
+/**
+ * Default odds types for `getAllFootballMatches`. HKJC's downstream rejects
+ * large odds-type sets with `DOWNSTREAM_SERVICE_ERROR`, so the default is a
+ * small, broadly-useful set: 1X2, handicap, over/under, correct score.
+ */
+export const DEFAULT_FOOTBALL_ODDS_TYPES: FootballOddsType[] = [
+    'HAD', 'HDC', 'HIL', 'CRS'
+];
+
+/**
+ * Odds types known to be rejected by HKJC's API in any combination.
+ * These appear to be deprecated early-settlement market variants.
+ */
+export const DEPRECATED_FOOTBALL_ODDS_TYPES: FootballOddsType[] = [
+    'EHA', 'EDC', 'EHL', 'ECH', 'ECS', 'ETG', 'ENT', 'ECD', 'EHH'
+];
+
+/**
+ * Odds types that currently respond from the HKJC API. Use these for building
+ * your own filtered request, but cap each call at ~4-5 types — large requests
+ * are rejected with `DOWNSTREAM_SERVICE_ERROR`.
+ */
+export const SUPPORTED_FOOTBALL_ODDS_TYPES: FootballOddsType[] = [
+    'HAD', 'SGA', 'CHP', 'TQL', 'FHA', 'HHA', 'HDC', 'HIL', 'FHL', 'CHL',
+    'FCH', 'CRS', 'FCS', 'FTS', 'TTG', 'OOE', 'FGS', 'HFT', 'MSP', 'NTS',
+    'FHH', 'FHC', 'CHD', 'AGS', 'LGS'
+];
+
 export interface FootballMatchesOptions {
     startDate?: string | null;
     endDate?: string | null;
@@ -45,12 +73,7 @@ export class FootballAPI {
             endDate = null,
             tournIds = null,
             matchIds = null,
-            oddsTypes = [
-                "HAD", "EHA", "SGA", "CHP", "TQL", "FHA", "HHA", "HDC", "EDC", "HIL",
-                "EHL", "FHL", "CHL", "ECH", "FCH", "CRS", "ECS", "FCS", "FTS", "TTG",
-                "ETG", "OOE", "FGS", "HFT", "MSP", "NTS", "ENT", "FHH", "FHC", "CHD",
-                "ECD", "EHH", "AGS", "LGS"
-            ],
+            oddsTypes = DEFAULT_FOOTBALL_ODDS_TYPES,
             featuredMatchesOnly = false,
             frontEndIds = null,
             earlySettlementOnly = false,
@@ -97,20 +120,15 @@ export class FootballAPI {
             throw new Error('Match ID is required');
         }
 
-        const defaultOddsTypes: FootballOddsType[] = [
-            "HAD", "EHA", "SGA", "CHP", "TQL", "FHA", "HHA", "HDC", "EDC", "HIL",
-            "EHL", "FHL", "CHL", "ECH", "FCH", "CRS", "ECS", "FCS", "FTS", "TTG",
-            "ETG", "OOE", "FGS", "HFT", "MSP", "NTS", "ENT", "FHH", "FHC", "CHD",
-            "ECD", "EHH", "AGS", "LGS"
-        ];
+        const effectiveOddsTypes = oddsTypes || DEFAULT_FOOTBALL_ODDS_TYPES;
 
         try {
             const response = await this.client.request<FootballMatchesResponse>(
                 footballMatchDetailsQuery,
                 {
                     matchIds: [matchId],
-                    fbOddsTypes: oddsTypes || defaultOddsTypes,
-                    fbOddsTypesM: oddsTypes || defaultOddsTypes,
+                    fbOddsTypes: effectiveOddsTypes,
+                    fbOddsTypesM: effectiveOddsTypes,
                     featuredMatchesOnly: false,
                     startDate: null,
                     endDate: null,
@@ -145,12 +163,7 @@ export class FootballAPI {
         // Convert single ID to array format for the API call
         const matchIds = [String(matchId)];
 
-        // Default variables based on variable.json
-        const fbOddsTypes: FootballOddsType[] = [
-            "HAD", "EHA", "CHP", "TQL", "FHA", "HHA", "HDC", "EDC", "HIL",
-            "EHL", "FHL", "CHL", "ECH", "FCH", "CRS", "ECS", "FCS", "FTS",
-            "TTG", "ETG", "NTS", "ENT", "FHH", "FHC", "CHD", "ECD", "EHH"
-        ];
+        const fbOddsTypes: FootballOddsType[] = DEFAULT_FOOTBALL_ODDS_TYPES;
 
         try {
             const response = await this.client.request<FootballMatchesResponse>(

@@ -35,6 +35,7 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
 - [Available Odds Types](#available-odds-types)
   - [Horse Racing](#horse-racing)
   - [Football](#football)
+- [API Limitations](#api-limitations)
 - [Examples](#examples)
   - [Horse Racing Example](#horse-racing-example)
   - [Football Example](#football-example)
@@ -119,7 +120,8 @@ const poolsResult = await horseRacingAPI.getRacePools(
 #### Get All Football Matches
 
 ```typescript
-// Get all football matches
+// Get all football matches with the default odds types
+// (HAD, HDC, HIL, CRS — see "API limitations" below)
 const allMatches = await footballAPI.getAllFootballMatches();
 
 // Get matches with filters
@@ -127,10 +129,16 @@ const filteredMatches = await footballAPI.getAllFootballMatches({
   startDate: '2025-04-30',
   endDate: '2025-05-07',
   tournIds: ['50046423'],          // Tournament IDs
-  oddsTypes: ['HAD', 'CRS', 'HHA'], // Odds types
+  oddsTypes: ['HAD', 'CRS', 'HHA'], // Odds types (cap at ~4 per call)
   featuredMatchesOnly: true        // Only featured matches
 });
 ```
+
+> ⚠️ **API limitations on `oddsTypes`** — HKJC's downstream rejects large
+> odds-type sets with `Internal server error - DOWNSTREAM_SERVICE_ERROR`.
+> Stick to **~4 odds types per call**, and avoid the deprecated
+> early-settlement variants. See [API Limitations](#api-limitations)
+> below if you need every market — fan out and merge by `match.id`.
 
 #### Get Match Details
 
@@ -194,42 +202,96 @@ The following odds types are supported for horse racing:
 
 ### Football
 
-The following odds types are supported for football:
+The following odds types are accepted by the HKJC API:
 
-- `HAD` - Home/Away/Draw (主客和)
-- `EHA` - Early Home/Away (早場主客和)
-- `SGA` - Special Group A (特別組A)
-- `CHP` - Championship (冠軍)
-- `TQL` - To Qualify (晉級)
-- `FHA` - First Half Home/Away/Draw (半場主客和)
-- `HHA` - Handicap Home/Away (讓球主客)
-- `HDC` - Handicap (讓球)
-- `EDC` - Early Handicap (早場讓球)
-- `HIL` - Hi/Lo (Over/Under) (大細)
-- `EHL` - Early Hi/Lo (早場大細)
-- `FHL` - First Half Hi/Lo (半場大細)
-- `CHL` - Corner Hi/Lo (角球大細)
-- `ECH` - Early Corner Hi/Lo (早場角球大細)
-- `FCH` - First Half Corner Hi/Lo (半場角球大細)
-- `CRS` - Correct Score (波膽)
-- `ECS` - Early Correct Score (早場波膽)
-- `FCS` - First Half Correct Score (半場波膽)
-- `FTS` - First Team to Score (首隊入球)
-- `TTG` - Total Goals (總入球)
-- `ETG` - Early Total Goals (早場總入球)
-- `OOE` - Odd/Even (單雙)
-- `FGS` - First Goalscorer (首名入球)
-- `HFT` - Halftime/Fulltime (半全場)
-- `MSP` - Multi-Scoring (多項入球)
-- `NTS` - Anytime Goalscorer (入球球員)
-- `ENT` - Early Anytime Goalscorer (早場入球球員)
-- `FHH` - First Half Handicap (半場讓球)
-- `FHC` - First Half Corner (半場角球)
-- `CHD` - Corner Handicap (角球讓球)
-- `ECD` - Early Corner Handicap (早場角球讓球)
-- `EHH` - Early Handicap Home/Away (早場讓球主客)
-- `AGS` - Anytime Goalscorer (全場任何時間入球)
-- `LGS` - Last Goalscorer (最後入球)
+| Code | Description (EN / 中) |
+| --- | --- |
+| `HAD` | Home/Away/Draw — 主客和 |
+| `SGA` | Special Group A — 特別組A |
+| `CHP` | Championship — 冠軍 |
+| `TQL` | To Qualify — 晉級 |
+| `FHA` | First Half Home/Away/Draw — 半場主客和 |
+| `HHA` | Handicap Home/Away — 讓球主客 |
+| `HDC` | Handicap — 讓球 |
+| `HIL` | Hi/Lo (Over/Under) — 大細 |
+| `FHL` | First Half Hi/Lo — 半場大細 |
+| `CHL` | Corner Hi/Lo — 角球大細 |
+| `FCH` | First Half Corner Hi/Lo — 半場角球大細 |
+| `CRS` | Correct Score — 波膽 |
+| `FCS` | First Half Correct Score — 半場波膽 |
+| `FTS` | First Team to Score — 首隊入球 |
+| `TTG` | Total Goals — 總入球 |
+| `OOE` | Odd/Even — 單雙 |
+| `FGS` | First Goalscorer — 首名入球 |
+| `HFT` | Halftime/Fulltime — 半全場 |
+| `MSP` | Multi-Scoring — 多項入球 |
+| `NTS` | Anytime Goalscorer — 入球球員 |
+| `FHH` | First Half Handicap — 半場讓球 |
+| `FHC` | First Half Corner — 半場角球 |
+| `CHD` | Corner Handicap — 角球讓球 |
+| `AGS` | Anytime Goalscorer — 全場任何時間入球 |
+| `LGS` | Last Goalscorer — 最後入球 |
+
+The package exports these as constants for convenience:
+
+```typescript
+import {
+  DEFAULT_FOOTBALL_ODDS_TYPES,      // ['HAD', 'HDC', 'HIL', 'CRS']
+  SUPPORTED_FOOTBALL_ODDS_TYPES,    // 25 working market codes
+  DEPRECATED_FOOTBALL_ODDS_TYPES    // 9 codes the upstream rejects
+} from 'hkjc-api';
+```
+
+#### Deprecated — currently rejected by HKJC
+
+The early-settlement variants below are still part of the GraphQL schema but
+the upstream service returns `DOWNSTREAM_SERVICE_ERROR` whenever they appear
+in a request. Avoid them.
+
+`EHA`, `EDC`, `EHL`, `ECH`, `ECS`, `ETG`, `ENT`, `ECD`, `EHH`
+
+---
+
+## API Limitations
+
+HKJC's GraphQL endpoint imposes a response-size ceiling that isn't reflected
+in the schema. Findings that affect how you should call this package:
+
+1. **Cap `oddsTypes` at ~4 per call.** Five or more "wide" markets
+   (`CRS`, `HIL`, `TQL`, `FHL`, `CHL`) trigger
+   `Internal server error - DOWNSTREAM_SERVICE_ERROR` and the SDK falls back
+   to an empty array.
+2. **Avoid the 9 deprecated `E`-prefix early-settlement codes** above — they
+   fail in any combination, even alone.
+3. **Filters (`startDate`, `featuredMatchesOnly`, pagination) don't lift the
+   cap.** The limit is on the response body, not the match list.
+4. **Need every market for every match?** Fan out into multiple small calls
+   and merge by `match.id`. Match metadata is identical across calls; only
+   `foPools` differs.
+
+```typescript
+import {
+  FootballAPI,
+  SUPPORTED_FOOTBALL_ODDS_TYPES,
+  FootballMatch
+} from 'hkjc-api';
+
+const api = new FootballAPI();
+const batchSize = 4;
+const merged = new Map<string, FootballMatch>();
+
+for (let i = 0; i < SUPPORTED_FOOTBALL_ODDS_TYPES.length; i += batchSize) {
+  const batch = SUPPORTED_FOOTBALL_ODDS_TYPES.slice(i, i + batchSize);
+  const matches = await api.getAllFootballMatches({ oddsTypes: batch });
+  for (const m of matches) {
+    const existing = merged.get(m.id);
+    if (existing) existing.foPools.push(...m.foPools);
+    else merged.set(m.id, m);
+  }
+}
+
+const allMatches = Array.from(merged.values());
+```
 
 ---
 
@@ -260,19 +322,26 @@ console.log(`WIN/PLA odds for race #1:`, raceOdds);
 const { FootballAPI } = require('hkjc-api');
 const footballAPI = new FootballAPI();
 
-// Get all matches
+// Get all matches (default odds types: HAD, HDC, HIL, CRS)
 const matches = await footballAPI.getAllFootballMatches();
 console.log(`Found ${matches.length} football matches`);
+
+// Filter to upcoming matches only
+const upcoming = matches.filter(m => new Date(m.kickOffTime) > new Date());
+console.log(`${upcoming.length} upcoming matches`);
 
 // Get details for the first match
 if (matches.length > 0) {
   const matchId = matches[0].id;
-  const matchDetails = await footballAPI.getFootballMatchDetails(matchId);
-  
+  const matchDetails = await footballAPI.getFootballMatchDetails(
+    matchId,
+    ['HAD', 'HDC', 'HIL', 'CRS'] // keep odds types small to avoid upstream errors
+  );
+
   console.log(`Match: ${matchDetails.homeTeam.name_en} vs ${matchDetails.awayTeam.name_en}`);
   console.log(`Date: ${matchDetails.matchDate}`);
   console.log(`Kick-off: ${matchDetails.kickOffTime}`);
-  
+
   // Get live running match data for real-time scores
   const runningData = await footballAPI.getRunningMatch(matchId);
   if (runningData.length > 0) {

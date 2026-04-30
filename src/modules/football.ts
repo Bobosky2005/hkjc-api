@@ -1,16 +1,25 @@
 import { HKJCClient, defaultClient } from '../client';
 import {
     FootballMatch,
-    FootballOddsType
+    FootballOddsType,
+    HistoricFootballMatch,
+    HistoricFootballMatchDetails,
+    HistoricFootballMatchesResult
 } from '../types/football';
 import {
     footballMatchesQuery,
     footballMatchDetailsQuery,
-    runningMatchQuery
+    runningMatchQuery,
+    historicFootballMatchesQuery,
+    historicFootballMatchDetailsQuery
 } from '../query/footballMatchesQuery';
 
 interface FootballMatchesResponse {
     matches: FootballMatch[];
+}
+
+interface HistoricFootballMatchDetailsResponse {
+    matches: HistoricFootballMatchDetails[];
 }
 
 /**
@@ -41,6 +50,18 @@ export const SUPPORTED_FOOTBALL_ODDS_TYPES: FootballOddsType[] = [
     'FHH', 'FHC', 'CHD', 'AGS', 'LGS'
 ];
 
+/**
+ * Result-only odds types for historic match details. Historic result queries
+ * accept a wider set of football pool codes than live odds requests.
+ */
+export const DEFAULT_HISTORIC_FOOTBALL_RESULT_ODDS_TYPES: FootballOddsType[] = [
+    'HAD', 'SGA', 'EHA', 'FHA', 'TQL', 'CRS', 'FCS', 'ECS', 'TTG', 'ETG',
+    'OOE', 'FGS', 'NGS', 'AGS', 'LGS', 'HFT', 'FTS', 'NTS', 'ENT', 'ETS',
+    'MSP', 'CHL', 'ECH', 'FCH', 'FHC', 'CHD', 'ECD', 'EHH', 'FHH', 'HLH',
+    'HLA', 'FLH', 'FLA', 'ELH', 'ELA', 'CHH', 'CHA', 'CFH', 'CFA', 'CEH',
+    'CEA'
+];
+
 export interface FootballMatchesOptions {
     startDate?: string | null;
     endDate?: string | null;
@@ -53,6 +74,14 @@ export interface FootballMatchesOptions {
     showAllMatch?: boolean;
     startIndex?: number | null;
     endIndex?: number | null;
+}
+
+export interface HistoricFootballMatchesOptions {
+    startDate?: string | null;
+    endDate?: string | null;
+    startIndex?: number | null;
+    endIndex?: number | null;
+    teamId?: string | null;
 }
 
 export class FootballAPI {
@@ -150,6 +179,92 @@ export class FootballAPI {
             return null;
         } catch (error) {
             console.error('Error fetching football match details:', error);
+            return null;
+        }
+    }
+
+    /**
+     * Search historic football match results.
+     * @param options Optional date, pagination, and team filters
+     * @returns Historic match search metadata and matches
+     */
+    async searchHistoricFootballMatches(options: HistoricFootballMatchesOptions = {}): Promise<HistoricFootballMatchesResult> {
+        const {
+            startDate = null,
+            endDate = null,
+            startIndex = null,
+            endIndex = null,
+            teamId = null
+        } = options;
+
+        try {
+            const response = await this.client.request<HistoricFootballMatchesResult>(
+                historicFootballMatchesQuery,
+                {
+                    startDate,
+                    endDate,
+                    startIndex,
+                    endIndex,
+                    teamId
+                }
+            );
+
+            return {
+                timeOffset: response?.timeOffset || { fb: 0 },
+                matchNumByDate: response?.matchNumByDate || { total: 0 },
+                matches: response?.matches || []
+            };
+        } catch (error) {
+            console.error('Error searching historic football matches:', error);
+            return {
+                timeOffset: { fb: 0 },
+                matchNumByDate: { total: 0 },
+                matches: []
+            };
+        }
+    }
+
+    /**
+     * Get historic football matches only, without search metadata.
+     * @param options Optional date, pagination, and team filters
+     * @returns A list of historic football matches
+     */
+    async getHistoricFootballMatches(options: HistoricFootballMatchesOptions = {}): Promise<HistoricFootballMatch[]> {
+        const response = await this.searchHistoricFootballMatches(options);
+        return response.matches;
+    }
+
+    /**
+     * Get result-only pool details for a historic football match.
+     * @param matchId The ID of the historic match to retrieve
+     * @param oddsTypes The result pool types to retrieve
+     * @returns Historic match result details for the specified match
+     */
+    async getHistoricFootballMatchDetails(
+        matchId: string | number,
+        oddsTypes?: FootballOddsType[]
+    ): Promise<HistoricFootballMatchDetails | null> {
+        if (matchId === undefined || matchId === null || String(matchId).trim() === '') {
+            throw new Error('Match ID is required');
+        }
+
+        const effectiveOddsTypes = oddsTypes || DEFAULT_HISTORIC_FOOTBALL_RESULT_ODDS_TYPES;
+
+        try {
+            const response = await this.client.request<HistoricFootballMatchDetailsResponse>(
+                historicFootballMatchDetailsQuery,
+                {
+                    matchId: String(matchId),
+                    fbOddsTypes: effectiveOddsTypes
+                }
+            );
+
+            if (response && response.matches && response.matches.length > 0) {
+                return response.matches[0];
+            }
+            return null;
+        } catch (error) {
+            console.error('Error fetching historic football match details:', error);
             return null;
         }
     }

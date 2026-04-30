@@ -14,6 +14,7 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
   - Get all football matches with filtering options
   - Get detailed information for specific matches
   - Get live/running match data with real-time scores
+  - Search historic match results and result-only payout pools
   - Access odds for multiple bet types (HAD, HHA, CRS, etc.)
 
 ---
@@ -32,6 +33,7 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
     - [Get All Football Matches](#get-all-football-matches)
     - [Get Match Details](#get-match-details)
     - [Get Running/Live Match Data](#get-runninglive-match-data)
+    - [Search Historic Match Results](#search-historic-match-results)
 - [Available Odds Types](#available-odds-types)
   - [Horse Racing](#horse-racing)
   - [Football](#football)
@@ -39,6 +41,7 @@ A Node.js package for communicating with the Hong Kong Jockey Club (HKJC) GraphQ
 - [Examples](#examples)
   - [Horse Racing Example](#horse-racing-example)
   - [Football Example](#football-example)
+  - [Historic Football Example](#historic-football-example)
 - [Error Handling](#error-handling)
 - [License](#license)
 
@@ -173,6 +176,79 @@ const runningMatch2 = await footballAPI.getRunningMatch(50049157);
 // or getFootballMatchDetails methods. Currently only supports single match IDs.
 ```
 
+#### Search Historic Match Results
+
+Use these methods for completed football matches and payout/result data. They
+call HKJC's `matchResult` GraphQL endpoint, which is separate from the live and
+upcoming `matches` endpoint used by `getAllFootballMatches`.
+
+```typescript
+// Search historic football match results by date and optional pagination/team
+const historicResult = await footballAPI.searchHistoricFootballMatches({
+  startDate: '2026-04-30',
+  endDate: '2026-04-30',
+  startIndex: 0,
+  endIndex: 20,
+  teamId: null
+});
+
+console.log(`Total historic matches: ${historicResult.matchNumByDate.total}`);
+console.log(`Returned matches: ${historicResult.matches.length}`);
+
+// If you only need the match array, use the convenience method
+const historicMatches = await footballAPI.getHistoricFootballMatches({
+  startDate: '2026-04-30',
+  endDate: '2026-04-30'
+});
+
+// Fetch result-only payout pool details for a historic match
+const historicDetails = await footballAPI.getHistoricFootballMatchDetails(
+  '50067456'
+);
+
+console.log(`Result pools: ${historicDetails?.foPools.length || 0}`);
+
+// You can also pass specific result pool types
+const hadResult = await footballAPI.getHistoricFootballMatchDetails(
+  '50067456',
+  ['HAD', 'CRS', 'TTG']
+);
+```
+
+Available methods:
+
+| Method | Returns | Description |
+| --- | --- | --- |
+| `searchHistoricFootballMatches(options?)` | `HistoricFootballMatchesResult` | Search historic matches and keep search metadata such as total count and football time offset. |
+| `getHistoricFootballMatches(options?)` | `HistoricFootballMatch[]` | Convenience wrapper that returns only the historic match array. |
+| `getHistoricFootballMatchDetails(matchId, oddsTypes?)` | `HistoricFootballMatchDetails \| null` | Fetch result-only payout pool details for one historic match. |
+
+`searchHistoricFootballMatches` and `getHistoricFootballMatches` accept:
+
+| Option | Type | Description |
+| --- | --- | --- |
+| `startDate` | `string \| null` | Start date for the historic search, for example `2026-04-30`. |
+| `endDate` | `string \| null` | End date for the historic search, for example `2026-04-30`. |
+| `startIndex` | `number \| null` | Optional pagination start index. |
+| `endIndex` | `number \| null` | Optional pagination end index. |
+| `teamId` | `string \| null` | Optional HKJC team ID filter. |
+
+`HistoricFootballMatchesResult` contains:
+
+| Field | Description |
+| --- | --- |
+| `timeOffset.fb` | HKJC football time offset value. |
+| `matchNumByDate.total` | Total number of historic matches matching the date/team filters. |
+| `matches` | Historic match list, including teams, tournament, score/result rows, and pool summary fields. |
+
+`getHistoricFootballMatchDetails` returns result-only pools:
+
+| Field | Description |
+| --- | --- |
+| `id` | Historic match ID. |
+| `foPools` | Result-only football pools with combinations, selection labels, statuses, and winning order. |
+| `additionalResults` | Extra result sets returned by HKJC, when available. |
+
 ---
 
 ## Available Odds Types
@@ -232,13 +308,27 @@ The following odds types are accepted by the HKJC API:
 | `AGS` | Anytime Goalscorer — 全場任何時間入球 |
 | `LGS` | Last Goalscorer — 最後入球 |
 
+Historic result details can request a wider result-only list through
+`DEFAULT_HISTORIC_FOOTBALL_RESULT_ODDS_TYPES`:
+
+```typescript
+[
+  'HAD', 'SGA', 'EHA', 'FHA', 'TQL', 'CRS', 'FCS', 'ECS', 'TTG', 'ETG',
+  'OOE', 'FGS', 'NGS', 'AGS', 'LGS', 'HFT', 'FTS', 'NTS', 'ENT', 'ETS',
+  'MSP', 'CHL', 'ECH', 'FCH', 'FHC', 'CHD', 'ECD', 'EHH', 'FHH', 'HLH',
+  'HLA', 'FLH', 'FLA', 'ELH', 'ELA', 'CHH', 'CHA', 'CFH', 'CFA', 'CEH',
+  'CEA'
+]
+```
+
 The package exports these as constants for convenience:
 
 ```typescript
 import {
   DEFAULT_FOOTBALL_ODDS_TYPES,      // ['HAD', 'HDC', 'HIL', 'CRS']
   SUPPORTED_FOOTBALL_ODDS_TYPES,    // 25 working market codes
-  DEPRECATED_FOOTBALL_ODDS_TYPES    // 9 codes the upstream rejects
+  DEPRECATED_FOOTBALL_ODDS_TYPES,   // 9 codes the upstream rejects
+  DEFAULT_HISTORIC_FOOTBALL_RESULT_ODDS_TYPES // result-only historic pool codes
 } from 'hkjc-api';
 ```
 
@@ -352,15 +442,60 @@ if (matches.length > 0) {
 }
 ```
 
+### Historic Football Example
+
+```typescript
+const { FootballAPI } = require('hkjc-api');
+const footballAPI = new FootballAPI();
+
+const results = await footballAPI.searchHistoricFootballMatches({
+  startDate: '2026-04-30',
+  endDate: '2026-04-30',
+  startIndex: 0,
+  endIndex: 20
+});
+
+console.log(`Total matches: ${results.matchNumByDate.total}`);
+
+for (const match of results.matches) {
+  const score = match.results.find(result => result.resultType === 1);
+  console.log(
+    `${match.frontEndId}: ${match.homeTeam.name_en} ${score?.homeResult ?? '-'} - ` +
+    `${score?.awayResult ?? '-'} ${match.awayTeam.name_en}`
+  );
+}
+
+if (results.matches.length > 0) {
+  const details = await footballAPI.getHistoricFootballMatchDetails(
+    results.matches[0].id,
+    ['HAD', 'CRS', 'TTG']
+  );
+
+  const winningHad = details?.foPools
+    .find(pool => pool.oddsType === 'HAD')
+    ?.lines.flatMap(line => line.combinations)
+    .filter(combination => combination.status === 'WIN');
+
+  console.log('Winning HAD selections:', winningHad);
+}
+```
+
 ## Error Handling
 
-Both APIs include proper error handling. Methods will return `null` or empty arrays when data is not found, and will throw exceptions for API errors.
+Both APIs include proper error handling. Methods return `null`, empty arrays,
+or an empty historic result object when data is not found or an upstream request
+fails. Methods that require a match ID throw when the ID is missing.
 
 ```typescript
 try {
   const match = await footballAPI.getFootballMatchDetails('invalid-id');
   if (match === null) {
     console.log('Match not found');
+  }
+
+  const historicDetails = await footballAPI.getHistoricFootballMatchDetails('50067456');
+  if (historicDetails === null) {
+    console.log('Historic match result details not found');
   }
 } catch (error) {
   console.error('API error:', error);

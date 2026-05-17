@@ -20,3 +20,4 @@ coverage/
 
 # OS
 .DS_Store
+/src/__tests__

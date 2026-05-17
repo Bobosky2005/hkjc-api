@@ -109,11 +109,43 @@ const oddsResult = await horseRacingAPI.getRaceOdds(
   ['WIN', 'PLA', 'QIN']   // Odds types (defaults to ['WIN', 'PLA'])
 );
 
+// HKJC does not guarantee that returned pools follow the requested oddsTypes order.
+// Read pools by oddsType instead of array position.
+const winPool = oddsResult.find(pool => pool.oddsType === 'WIN');
+const plaPool = oddsResult.find(pool => pool.oddsType === 'PLA');
+
+console.log('WIN odds:', winPool?.oddsNodes);
+console.log('PLA odds:', plaPool?.oddsNodes);
+
 // Get pool investment data
 const poolsResult = await horseRacingAPI.getRacePools(
   1,                      // Race number (defaults to 1)
   ['WIN', 'PLA']          // Odds types (defaults to ['WIN', 'PLA'])
 );
+```
+
+`getRaceOdds()` returns HKJC `pmPools` as an array. The HKJC GraphQL API may
+return those pools in a different order from the requested `oddsTypes`. For
+example, a request for `['WIN', 'PLA']` may return the `PLA` pool before the
+`WIN` pool.
+
+Avoid this pattern:
+
+```typescript
+const [winPool, plaPool] = await horseRacingAPI.getRaceOdds(1, ['WIN', 'PLA']);
+```
+
+Use `oddsType` matching instead:
+
+```typescript
+const odds = await horseRacingAPI.getRaceOdds(1, ['WIN', 'PLA']);
+
+const oddsByType = Object.fromEntries(
+  odds.map(pool => [pool.oddsType, pool])
+);
+
+console.log(oddsByType.WIN?.oddsNodes);
+console.log(oddsByType.PLA?.oddsNodes);
 ```
 
 ---
@@ -403,7 +435,11 @@ console.log(`Found ${races[0]?.races.length || 0} races today`);
 
 // Get WIN and PLA odds for race #1
 const raceOdds = await horseAPI.getRaceOdds(1, ['WIN', 'PLA']);
-console.log(`WIN/PLA odds for race #1:`, raceOdds);
+const winOdds = raceOdds.find(pool => pool.oddsType === 'WIN');
+const plaOdds = raceOdds.find(pool => pool.oddsType === 'PLA');
+
+console.log('WIN odds for race #1:', winOdds?.oddsNodes);
+console.log('PLA odds for race #1:', plaOdds?.oddsNodes);
 ```
 
 ### Football Example

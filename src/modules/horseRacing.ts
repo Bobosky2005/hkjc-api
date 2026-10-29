@@ -10,6 +10,10 @@ interface RaceMeetingsResponse {
     raceMeetings: RaceMeeting[];
 }
 
+/**
+ * Selects a specific meeting, e.g. { date: '2026-11-01', venueCode: 'HV' }.
+ * When omitted, HKJC returns its current default meeting.
+ */
 interface GetRacesOptions {
     date?: string;
     venueCode?: string;
@@ -55,8 +59,8 @@ export class HorseRacingAPI {
         return activeMeetings;
     }
 
-    async getRace(raceNumber: number = 1): Promise<Race | null> {
-        const { raceMeetings } = await this.getRaceMeetings();
+    async getRace(raceNumber: number = 1, options: GetRacesOptions = {}): Promise<Race | null> {
+        const { raceMeetings } = await this.getRaceMeetings(options);
 
         const meeting = raceMeetings[0];
         if (!meeting) return null;
@@ -67,8 +71,8 @@ export class HorseRacingAPI {
         return race || null;
     }
 
-    async getAllRaces(): Promise<RaceMeeting[]> {
-        const { raceMeetings } = await this.getRaceMeetings();
+    async getAllRaces(options: GetRacesOptions = {}): Promise<RaceMeeting[]> {
+        const { raceMeetings } = await this.getRaceMeetings(options);
         return raceMeetings;
     }
 
@@ -76,15 +80,18 @@ export class HorseRacingAPI {
      * Gets the detailed odds information for a specific race
      * @param raceNumber The race number to get odds for (defaults to 1)
      * @param oddsTypes Array of odds types to retrieve (defaults to WIN and PLA)
+     * @param options Meeting date / venue code (defaults to HKJC's current meeting)
      * @returns An array of odds details for the specified race and odds types
      */
     async getRaceOdds(
         raceNumber: number = 1,
         oddsTypes: OddsType[] = ['WIN', 'PLA'],
+        options: GetRacesOptions = {},
     ): Promise<any[]> {
         const oddsResponse = await this.client.request<OddsResponse>(
             horseOddsQuery,
             {
+                ...options,
                 raceNo: raceNumber,
                 oddsTypes,
             }
@@ -97,15 +104,18 @@ export class HorseRacingAPI {
      * Gets the pool investment information for a specific race
      * @param raceNumber The race number to get pool info for (defaults to 1)
      * @param oddsTypes Array of odds types to retrieve (defaults to WIN and PLA)
+     * @param options Meeting date / venue code (defaults to HKJC's current meeting)
      * @returns An array of pool information for the specified race and odds types
      */
     async getRacePools(
         raceNumber: number = 1,
         oddsTypes: OddsType[] = ['WIN', 'PLA'],
+        options: GetRacesOptions = {},
     ): Promise<any[]> {
         const poolResponse = await this.client.request<OddsResponse>(
             horsePoolQuery,
             {
+                ...options,
                 raceNo: raceNumber,
                 oddsTypes,
             }

@@ -91,6 +91,32 @@ const races = await horseRacingAPI.getAllRaces();
 const race = await horseRacingAPI.getRace(3); // Get race #3
 ```
 
+#### Select a Specific Meeting
+
+When there is more than one upcoming meeting (e.g. Happy Valley and Sha Tin),
+HKJC only returns its default meeting unless you ask for one. `getAllRaces()`,
+`getRace()`, `getRaceOdds()` and `getRacePools()` accept an optional
+`{ date, venueCode }` as their last argument:
+
+```typescript
+// List upcoming meetings, then fetch each one explicitly
+const active = await horseRacingAPI.getActiveMeetings();
+
+for (const { date, venueCode } of active) {
+  const [meeting] = await horseRacingAPI.getAllRaces({ date, venueCode });
+  const odds = await horseRacingAPI.getRaceOdds(1, ['WIN', 'PLA'], { date, venueCode });
+}
+```
+
+#### Troubleshooting `WHITELIST_ERROR`
+
+HKJC only accepts GraphQL queries that match the ones its own website sends.
+If they change their site, requests can start failing with
+`Internal server error - WHITELIST_ERROR`. To find the new query, open
+bet.hkjc.com with your browser's DevTools Network tab, find the request to
+`info.cld.hkjc.com/graphql/...`, and compare its `query` with the one in
+`src/query/horseRacingQuery.ts`.
+
 #### Get Race Runners
 
 ```typescript

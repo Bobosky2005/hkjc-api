@@ -91,6 +91,11 @@ query raceMeetings($date: String, $venueCode: String) {
       status
       wageringFieldSize
     }
+    poolInvs: pmPools(
+      oddsTypes: [WIN, PLA, QIN, QPL, CWA, CWB, CWC, IWN, FCT, TCE, TRI, FF, QTT, DBL, TBL, DT, TT, SixUP]
+    ) {
+      status
+    }
   }
   raceMeetings(date: $date, venueCode: $venueCode) {
     id
